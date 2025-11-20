@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       // Sets the base path to relative so assets load correctly on GitHub Pages (e.g. /repo-name/)
-      base: './',
+      base: '/CyberRipRepo/',
       server: {
         port: 3000,
         host: '0.0.0.0',

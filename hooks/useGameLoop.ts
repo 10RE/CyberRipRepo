@@ -20,6 +20,10 @@ export const useGameLoop = (map: GameMap, paused: boolean) => {
     }
   });
 
+  // Use a ref to access the latest player state inside the loop without re-binding the loop function
+  const playerRef = useRef(player);
+  useEffect(() => { playerRef.current = player; }, [player]);
+
   const keysPressed = useRef<Set<string>>(new Set());
   const requestRef = useRef<number | null>(null);
 
@@ -29,8 +33,8 @@ export const useGameLoop = (map: GameMap, paused: boolean) => {
         const key = e.key.toLowerCase();
         keysPressed.current.add(key);
         
-        // Stand up logic
-        if (player.isSitting && ['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {
+        // Stand up logic accessed via ref to avoid stale closures
+        if (playerRef.current.isSitting && ['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {
             setPlayer(prev => ({ 
                 ...prev, 
                 isSitting: false, 
@@ -46,11 +50,13 @@ export const useGameLoop = (map: GameMap, paused: boolean) => {
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [player.isSitting]);
+  }, []);
 
   // Physics Loop
   const updateGame = useCallback(() => {
-    if (paused || player.isSitting) {
+    const currentPlayer = playerRef.current;
+
+    if (paused || currentPlayer.isSitting) {
         requestRef.current = requestAnimationFrame(updateGame);
         return;
     }
@@ -92,8 +98,16 @@ export const useGameLoop = (map: GameMap, paused: boolean) => {
                     if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) return true;
                     
                     const tile = map.tiles[ty][tx];
-                    // Wall and Desk block movement. Doors, Water, etc are walkable (though logic might vary for water)
-                    if (tile === TileType.WALL || tile === TileType.DESK) return true;
+                    // Collision Physics
+                    if (
+                        tile === TileType.WALL || 
+                        tile === TileType.DESK || 
+                        tile === TileType.TOMBSTONE ||
+                        tile === TileType.ALTAR ||
+                        tile === TileType.WATER ||
+                        tile === TileType.TREE ||
+                        tile === TileType.PODIUM
+                    ) return true;
                 }
                 return false;
             };
@@ -117,7 +131,7 @@ export const useGameLoop = (map: GameMap, paused: boolean) => {
     }
 
     requestRef.current = requestAnimationFrame(updateGame);
-  }, [map, paused, player.isSitting]);
+  }, [map, paused]); // No dependency on 'player' anymore!
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(updateGame);

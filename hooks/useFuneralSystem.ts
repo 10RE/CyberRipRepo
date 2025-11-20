@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { FuneralData, DirectorPhase } from '../types';
-import { generateWittyEulogy } from '../services/geminiService';
+// import { generateWittyEulogy } from '../services/geminiService';
+import { generateWittyEulogy } from '../services/openaiService';
 
 const INITIAL_FUNERAL: FuneralData = {
   id: 'init',
@@ -12,7 +13,7 @@ const INITIAL_FUNERAL: FuneralData = {
 };
 
 export const useFuneralSystem = () => {
-  const [queue, setQueue] = useState<FuneralData[]>([INITIAL_FUNERAL]);
+  const [queue, setQueue] = useState<FuneralData[]>([]);
   const [history, setHistory] = useState<FuneralData[]>([]);
   const [directorPhase, setDirectorPhase] = useState<DirectorPhase>(DirectorPhase.IDLE);
   const [activeCeremony, setActiveCeremony] = useState<FuneralData | null>(null);

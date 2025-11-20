@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import PixelMap from './components/PixelMap';
 import { WorldEntities } from './components/WorldEntities';
 import { UIOverlay } from './components/UIOverlay';
@@ -23,7 +23,6 @@ const Game: React.FC = () => {
     // Game State
     const [activeModal, setActiveModal] = useState<ModalType>('INTRO');
     const [notification, setNotification] = useState<string | null>(null);
-    const [nearbyInteractableId, setNearbyInteractableId] = useState<string | null>(null);
 
     // Systems
     const { player, setPlayer } = useGameLoop(map, !!activeModal);
@@ -36,14 +35,14 @@ const Game: React.FC = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Interaction Logic
-    useEffect(() => {
+    // --- DERIVED STATE: Nearest Interactable ---
+    // Calculate this during render to avoid useEffect state cycles
+    const getNearestInteractable = () => {
         const playerCenter = { x: player.pos.x + TILE_SIZE / 2, y: player.pos.y + TILE_SIZE / 2 };
-        let nearest: any = null;
+        let nearest: Interactable | null = null;
         let nearestId: string | null = null;
         let minDist = 80; // Interaction range
 
-        // Find nearest interactable
         Object.entries(map.interactables).forEach(([key, obj]) => {
             const interactable = obj as Interactable;
             const [ty, tx] = key.split(',').map(Number);
@@ -55,33 +54,53 @@ const Game: React.FC = () => {
                 nearestId = interactable.id;
             }
         });
+        return { nearest, nearestId };
+    };
 
-        setNearbyInteractableId(nearestId);
+    const { nearest, nearestId } = getNearestInteractable();
 
+    // Refs for Event Listener Access (prevents stale closures without re-binding listeners)
+    const nearestRef = useRef(nearest);
+    const playerRef = useRef(player);
+    const activeModalRef = useRef(activeModal);
+
+    useEffect(() => { nearestRef.current = nearest; }, [nearest]);
+    useEffect(() => { playerRef.current = player; }, [player]);
+    useEffect(() => { activeModalRef.current = activeModal; }, [activeModal]);
+
+    // Interaction Listener
+    useEffect(() => {
         const handleInteract = (e: KeyboardEvent) => {
-            if (activeModal) {
+            const currentModal = activeModalRef.current;
+            
+            if (currentModal) {
                 // Allow closing modals with Escape (except Intro)
-                if (e.key === 'Escape' && activeModal !== 'INTRO') setActiveModal(null);
+                if (e.key === 'Escape' && currentModal !== 'INTRO') setActiveModal(null);
                 return;
             }
 
             if (e.key.toLowerCase() !== 'f') return;
 
+            // Prevent 'f' from being typed into inputs if a modal opens
+            e.preventDefault();
+
+            const currentPlayer = playerRef.current;
             // Standing up from chair
-            if (player.isSitting) {
+            if (currentPlayer.isSitting) {
                 setPlayer(p => ({ ...p, isSitting: false, pos: { ...p.pos, y: p.pos.y + 10 } }));
                 return;
             }
 
-            if (!nearest) return;
+            const currentNearest = nearestRef.current;
+            if (!currentNearest) return;
 
             // Handle specific interaction types
-            if (nearest.type === 'receptionist') {
+            if (currentNearest.type === 'receptionist') {
                 setActiveModal('APPLICATION');
-            } else if (nearest.type === 'notice_board') {
+            } else if (currentNearest.type === 'notice_board') {
                 setActiveModal('NOTICE');
-            } else if (nearest.type === 'chair') {
-                const [y, x] = nearest.id.split('_').slice(1).map(Number);
+            } else if (currentNearest.type === 'chair') {
+                const [y, x] = currentNearest.id.split('_').slice(1).map(Number);
                 setPlayer(p => ({
                     ...p, 
                     isSitting: true, 
@@ -89,15 +108,15 @@ const Game: React.FC = () => {
                     direction: 'right', 
                     pos: { x: x * TILE_SIZE, y: y * TILE_SIZE - 10 }
                 }));
-            } else if (nearest.message) {
-                setNotification(nearest.message);
+            } else if (currentNearest.message) {
+                setNotification(currentNearest.message);
                 setTimeout(() => setNotification(null), 3000);
             }
         };
 
         window.addEventListener('keydown', handleInteract);
         return () => window.removeEventListener('keydown', handleInteract);
-    }, [player.pos, player.isSitting, activeModal, map, setPlayer]);
+    }, [setPlayer]); // Minimal dependencies
 
     // Camera Calculation
     const camX = (viewport.w / (2 * zoomLevel)) - (player.pos.x + TILE_SIZE/2);
@@ -149,7 +168,7 @@ const Game: React.FC = () => {
                     activeCeremony={activeCeremony} 
                     currentSpeechBubble={currentSpeechBubble}
                     npcs={map.npcs}
-                    nearbyInteractableId={nearbyInteractableId}
+                    nearbyInteractableId={nearestId}
                 />
             </div>
 

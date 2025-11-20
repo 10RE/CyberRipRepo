@@ -13,9 +13,8 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        // 'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || ""),
-        // 'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || "")
-        'process.env.DASHSCOPE_API_KEY': JSON.stringify(env.DASHSCOPE_API_KEY || "")
+        // Prefer build-time secret from process.env (GitHub Actions) then fallback to .env files.
+        'process.env.DASHSCOPE_API_KEY': JSON.stringify(process.env.DASHSCOPE_API_KEY || env.DASHSCOPE_API_KEY || "")
       }
     };
 });

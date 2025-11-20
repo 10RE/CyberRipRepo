@@ -4,6 +4,8 @@ import OpenAI from "openai";
 // Safely retrieve the key (Vite replaces process.env with string literals)
 const apiKey = process.env.DASHSCOPE_API_KEY;
 
+console.log("API Key:", apiKey);
+
 // Initialize the client only if the key exists
 const client = apiKey ? new OpenAI({
   apiKey: apiKey,

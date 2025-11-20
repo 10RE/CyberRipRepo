@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => {
       plugins: [react()],
       define: {
         // Prefer build-time secret from process.env (GitHub Actions) then fallback to .env files.
-        'process.env.DASHSCOPE_API_KEY': JSON.stringify(process.env.DASHSCOPE_API_KEY || env.DASHSCOPE_API_KEY || "")
+        'process.env.DASHSCOPE_API_KEY' : "sk-e264f21c625e401e872037a477c914ac"
+        // 'process.env.DASHSCOPE_API_KEY': JSON.stringify(process.env.DASHSCOPE_API_KEY || env.DASHSCOPE_API_KEY || "")
       }
     };
 });

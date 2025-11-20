@@ -12,9 +12,9 @@ export const useGameLoop = (map: GameMap, paused: boolean) => {
     isMoving: false,
     isSitting: false,
     appearance: {
-        hatColor: '#e4b85d',
-        shirtColor: '#f44336',
-        pantsColor: '#1565c0',
+        hatColor: '#000000',
+        shirtColor: '#000000',
+        pantsColor: '#000000',
         skinColor: '#ffdbac',
         hasHat: true
     }

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PixelMap from './components/PixelMap';
 import { WorldEntities } from './components/WorldEntities';
 import { UIOverlay } from './components/UIOverlay';
@@ -7,14 +6,14 @@ import { Modal } from './components/Modal';
 import { ApplicationForm, CustomizationForm, NoticeBoardView, IntroView } from './components/Forms';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useFuneralSystem } from './hooks/useFuneralSystem';
-import { generateMap } from './utils/mapGenerator';
-import { TILE_SIZE, Interactable } from './types';
+import { TILE_SIZE, Interactable, GameMap } from './types';
+import { socket } from './services/socket';
 
 type ModalType = 'APPLICATION' | 'WARDROBE' | 'NOTICE' | 'INTRO' | null;
 
 const Game: React.FC = () => {
-    // Generate map once on mount
-    const map = useMemo(() => generateMap(), []);
+    // Map is now loaded from server
+    const [map, setMap] = useState<GameMap | null>(null);
     
     // Viewport State
     const [zoomLevel, setZoomLevel] = useState(1.5);
@@ -25,8 +24,29 @@ const Game: React.FC = () => {
     const [notification, setNotification] = useState<string | null>(null);
 
     // Systems
-    const { player, setPlayer } = useGameLoop(map, !!activeModal);
+    // useGameLoop now requires map to be loaded
+    const { player, setPlayer, players, myId } = useGameLoop(map, !!activeModal);
     const { queue, history, directorPhase, activeCeremony, addFuneral, currentSpeechBubble } = useFuneralSystem();
+
+    // Listen for Map Data
+    useEffect(() => {
+        console.log('Game component mounted, setting up socket listeners');
+        socket.on('connect', () => {
+            console.log('Socket connected:', socket.id);
+        });
+        socket.on('connect_error', (err) => {
+            console.error('Socket connection error:', err);
+        });
+        socket.on('mapData', (data) => {
+            console.log('Received map data');
+            setMap(data);
+        });
+        return () => { 
+            socket.off('connect');
+            socket.off('connect_error');
+            socket.off('mapData'); 
+        };
+    }, []);
 
     // Resize Handler
     useEffect(() => {
@@ -36,12 +56,12 @@ const Game: React.FC = () => {
     }, []);
 
     // --- DERIVED STATE: Nearest Interactable ---
-    // Calculate this during render to avoid useEffect state cycles
     const getNearestInteractable = () => {
+        if (!map) return { nearest: null, nearestId: null };
         const playerCenter = { x: player.pos.x + TILE_SIZE / 2, y: player.pos.y + TILE_SIZE / 2 };
         let nearest: Interactable | null = null;
         let nearestId: string | null = null;
-        let minDist = 80; // Interaction range
+        let minDist = 80;
 
         Object.entries(map.interactables).forEach(([key, obj]) => {
             const interactable = obj as Interactable;
@@ -59,7 +79,7 @@ const Game: React.FC = () => {
 
     const { nearest, nearestId } = getNearestInteractable();
 
-    // Refs for Event Listener Access (prevents stale closures without re-binding listeners)
+    // Refs
     const nearestRef = useRef(nearest);
     const playerRef = useRef(player);
     const activeModalRef = useRef(activeModal);
@@ -74,18 +94,14 @@ const Game: React.FC = () => {
             const currentModal = activeModalRef.current;
             
             if (currentModal) {
-                // Allow closing modals with Escape (except Intro)
                 if (e.key === 'Escape' && currentModal !== 'INTRO') setActiveModal(null);
                 return;
             }
 
             if (e.key.toLowerCase() !== 'f') return;
-
-            // Prevent 'f' from being typed into inputs if a modal opens
             e.preventDefault();
 
             const currentPlayer = playerRef.current;
-            // Standing up from chair
             if (currentPlayer.isSitting) {
                 setPlayer(p => ({ ...p, isSitting: false, pos: { ...p.pos, y: p.pos.y + 10 } }));
                 return;
@@ -94,7 +110,6 @@ const Game: React.FC = () => {
             const currentNearest = nearestRef.current;
             if (!currentNearest) return;
 
-            // Handle specific interaction types
             if (currentNearest.type === 'receptionist') {
                 setActiveModal('APPLICATION');
             } else if (currentNearest.type === 'notice_board') {
@@ -116,9 +131,10 @@ const Game: React.FC = () => {
 
         window.addEventListener('keydown', handleInteract);
         return () => window.removeEventListener('keydown', handleInteract);
-    }, [setPlayer]); // Minimal dependencies
+    }, [setPlayer]);
 
-    // Camera Calculation
+    if (!map) return <div className="w-full h-screen bg-black text-[#e4b85d] flex items-center justify-center font-pixel">Connecting to Afterlife...</div>;
+
     const camX = (viewport.w / (2 * zoomLevel)) - (player.pos.x + TILE_SIZE/2);
     const camY = (viewport.h / (2 * zoomLevel)) - (player.pos.y + TILE_SIZE/2);
 
@@ -129,9 +145,8 @@ const Game: React.FC = () => {
             case 'APPLICATION':
                 return <ApplicationForm onSubmit={async (n, c) => {
                     setActiveModal(null);
-                    setNotification("Processing request...");
+                    setNotification("Request sent to server...");
                     await addFuneral(n, c);
-                    setNotification("Funeral scheduled.");
                 }} />;
             case 'NOTICE':
                 return <NoticeBoardView history={history} queue={queue} />;
@@ -139,16 +154,6 @@ const Game: React.FC = () => {
                 return <IntroView onStart={() => setActiveModal(null)} />;
             default:
                 return null;
-        }
-    };
-
-    const getModalTitle = () => {
-        switch(activeModal) {
-            case 'WARDROBE': return 'Wardrobe';
-            case 'APPLICATION': return 'Funeral Application';
-            case 'NOTICE': return 'Town Chronicles';
-            case 'INTRO': return '';
-            default: return '';
         }
     };
 
@@ -163,7 +168,8 @@ const Game: React.FC = () => {
             >
                 <PixelMap mapData={map} />
                 <WorldEntities 
-                    player={player} 
+                    players={players}
+                    myId={myId}
                     directorPhase={directorPhase} 
                     activeCeremony={activeCeremony} 
                     currentSpeechBubble={currentSpeechBubble}
@@ -183,7 +189,7 @@ const Game: React.FC = () => {
 
             <Modal 
                 isOpen={!!activeModal} 
-                title={getModalTitle()} 
+                title={activeModal === 'WARDROBE' ? 'Wardrobe' : activeModal === 'APPLICATION' ? 'Funeral Application' : activeModal === 'NOTICE' ? 'Town Chronicles' : ''} 
                 onClose={activeModal === 'INTRO' ? undefined : () => setActiveModal(null)}
             >
                 {renderModalContent()}

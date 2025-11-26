@@ -85,3 +85,25 @@ export enum DirectorPhase {
 export const TILE_SIZE = 48;
 export const MAP_WIDTH = 40;
 export const MAP_HEIGHT = 30;
+
+// Socket Types
+export interface ServerToClientEvents {
+    mapData: (map: GameMap) => void;
+    gameStateUpdate: (state: {
+        queue: FuneralData[];
+        history: FuneralData[];
+        activeCeremony: FuneralData | null;
+        directorPhase: string; // string from server, mapped to enum on client
+        currentSpeechBubble: string | null;
+    }) => void;
+    currentPlayers: (players: Record<string, PlayerState>) => void;
+    playerJoined: (player: PlayerState) => void;
+    playerMoved: (player: PlayerState) => void;
+    playerLeft: (id: string) => void;
+}
+
+export interface ClientToServerEvents {
+    playerMove: (player: Partial<PlayerState>) => void;
+    updateAppearance: (appearance: CharacterAppearance) => void;
+    submitFuneral: (data: { deceasedName: string; causeOfDeath: string; eulogy: string }) => void;
+}

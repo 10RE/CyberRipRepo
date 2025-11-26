@@ -2,7 +2,8 @@ import React from 'react';
 import { PlayerState, TILE_SIZE, DirectorPhase, FuneralData, NPC } from '../types';
 
 interface WorldEntitiesProps {
-  player: PlayerState;
+  players: Record<string, PlayerState>;
+  myId: string | null;
   directorPhase: DirectorPhase;
   activeCeremony: FuneralData | null;
   currentSpeechBubble: string | null;
@@ -11,7 +12,8 @@ interface WorldEntitiesProps {
 }
 
 export const WorldEntities: React.FC<WorldEntitiesProps> = ({ 
-    player, 
+    players,
+    myId,
     directorPhase, 
     activeCeremony, 
     currentSpeechBubble, 
@@ -90,10 +92,8 @@ export const WorldEntities: React.FC<WorldEntitiesProps> = ({
                     width: 160,
                     height: 80,
                     zIndex: 25,
-                    // CSS transition handles the LEAVE phase movement
                     transition: 'top 4s ease-in',
                 }}
-                // Use animation for the ARRIVAL slide-in
                 className={directorPhase === DirectorPhase.ARRIVAL ? 'hearse-arrive' : ''}
             >
                 <style>{`
@@ -111,38 +111,29 @@ export const WorldEntities: React.FC<WorldEntitiesProps> = ({
         )}
 
         {/* --- BEARERS LOGIC --- */}
-        
-        {/* 1. PROCESSION: Walk to Altar (y=24 -> y=8) SLOWLY (12s) */}
         {directorPhase === DirectorPhase.PROCESSION && (
              <div style={{ position: 'absolute', left: 19 * TILE_SIZE, top: 8 * TILE_SIZE, zIndex: 30 }} className="procession-walk">
                  <style>{`@keyframes walkUp { from { top: ${24 * TILE_SIZE}px; } to { top: ${8 * TILE_SIZE + 10}px; } } .procession-walk { animation: walkUp 12s linear forwards; }`}</style>
                  {renderBearerGroup(true)}
              </div>
         )}
-
-        {/* 2. RETURN: Walk back to CHAPEL DOOR (y=8 -> y=17) (6s) */}
         {directorPhase === DirectorPhase.BEARERS_RETURN && (
             <div style={{ position: 'absolute', left: 19 * TILE_SIZE, top: 17 * TILE_SIZE, zIndex: 30 }} className="bearers-return">
                 <style>{`@keyframes walkBack { from { top: ${8 * TILE_SIZE}px; } to { top: ${17 * TILE_SIZE}px; } } .bearers-return { animation: walkBack 6s linear forwards; }`}</style>
                 {renderBearerGroup(false)}
             </div>
         )}
-
-        {/* 3. WATCHING: Static at Chapel Door (Entrance to Ceremony Room) */}
         {(directorPhase === DirectorPhase.PREACHING || directorPhase === DirectorPhase.PRE_AMEN || directorPhase === DirectorPhase.AMEN || directorPhase === DirectorPhase.BURIAL) && (
             <div style={{ position: 'absolute', left: 19 * TILE_SIZE, top: 17 * TILE_SIZE, zIndex: 30 }}>
                 {renderBearerGroup(false)}
             </div>
         )}
-
-        {/* 4. LEAVE: Walk out from Chapel Door to Main Gate (y=17 -> y=25) (6s) */}
         {directorPhase === DirectorPhase.BEARERS_LEAVE && (
             <div style={{ position: 'absolute', left: 19 * TILE_SIZE, top: 25 * TILE_SIZE, zIndex: 30 }} className="bearers-leave">
                 <style>{`@keyframes walkOut { from { top: ${17 * TILE_SIZE}px; } to { top: ${25 * TILE_SIZE}px; } } .bearers-leave { animation: walkOut 6s linear forwards; }`}</style>
                 {renderBearerGroup(false)}
             </div>
         )}
-
 
         {/* --- STATIC COFFIN (At Altar) --- */}
         {activeCeremony && (
@@ -190,7 +181,7 @@ export const WorldEntities: React.FC<WorldEntitiesProps> = ({
             </div>
         ))}
 
-        {/* --- PRIEST (x=19, y=7) --- */}
+        {/* --- PRIEST --- */}
         <div 
         style={{
             width: TILE_SIZE, height: TILE_SIZE,
@@ -205,8 +196,6 @@ export const WorldEntities: React.FC<WorldEntitiesProps> = ({
                 <div className="absolute top-2 left-3 w-0.5 h-0.5 bg-black"></div>
                 <div className="absolute top-2 right-3 w-0.5 h-0.5 bg-black"></div>
             </div>
-            
-            {/* SPEECH BUBBLE */}
             {shouldShowBubble && activeCeremony && (
                 <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-64 bg-white p-3 rounded-lg border-2 border-black text-[10px] z-[60] flex flex-col items-center text-center shadow-xl">
                     {directorPhase === DirectorPhase.PREACHING && currentSpeechBubble && (
@@ -245,7 +234,6 @@ export const WorldEntities: React.FC<WorldEntitiesProps> = ({
                 <div className="absolute top-2 right-3 w-0.5 h-0.5 bg-black"></div>
                  <div className="absolute top-2 left-2 w-4 h-1 border-b border-black"></div>
             </div>
-            
             {nearbyInteractableId && nearbyInteractableId.includes('receptionist') && (
                 <div className="absolute -top-10 bg-white px-2 py-1 rounded-lg border-2 border-black text-[8px] whitespace-nowrap animate-bounce z-50">
                     How can I help?
@@ -254,23 +242,29 @@ export const WorldEntities: React.FC<WorldEntitiesProps> = ({
             )}
         </div>
 
-        {/* --- PLAYER --- */}
-        <div 
-        style={{
-            width: TILE_SIZE, height: TILE_SIZE,
-            position: 'absolute', left: player.pos.x, top: player.pos.y,
-            zIndex: player.isSitting ? 15 : 20, pointerEvents: 'none'
-        }}
-        className="flex items-center justify-center"
-        >
-            {renderCharacter(player.appearance, player.direction, player.isMoving, player.isSitting)}
-            <div className="absolute -top-8 text-[8px] bg-black/40 px-1 rounded text-white whitespace-nowrap scale-[0.6]">You</div>
-            {directorPhase === DirectorPhase.AMEN && isInChapel(player.pos) && (
-                 <div className="absolute -top-12 bg-white px-2 rounded text-[10px] border border-black animate-float z-50">
-                    AMEN
+        {/* --- PLAYERS (Multiplayer) --- */}
+        {Object.values(players).map((p: PlayerState) => (
+            <div 
+            key={p.id}
+            style={{
+                width: TILE_SIZE, height: TILE_SIZE,
+                position: 'absolute', left: p.pos.x, top: p.pos.y,
+                zIndex: p.isSitting ? 15 : 20, pointerEvents: 'none',
+                transition: 'left 0.1s linear, top 0.1s linear' // Smooth out server updates
+            }}
+            className="flex items-center justify-center"
+            >
+                {renderCharacter(p.appearance, p.direction, p.isMoving, p.isSitting)}
+                <div className={`absolute -top-8 text-[8px] px-1 rounded text-white whitespace-nowrap scale-[0.6] ${p.id === myId ? 'bg-yellow-600' : 'bg-black/40'}`}>
+                    {p.id === myId ? 'You' : 'Guest'}
                 </div>
-            )}
-        </div>
+                {directorPhase === DirectorPhase.AMEN && isInChapel(p.pos) && (
+                     <div className="absolute -top-12 bg-white px-2 rounded text-[10px] border border-black animate-float z-50">
+                        AMEN
+                    </div>
+                )}
+            </div>
+        ))}
     </>
   );
 };

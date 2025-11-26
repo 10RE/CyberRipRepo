@@ -26,6 +26,7 @@ export const useGameLoop = (map: GameMap | null, paused: boolean) => {
   const keysPressed = useRef<Set<string>>(new Set());
   const requestRef = useRef<number | null>(null);
   const lastEmitRef = useRef<number>(0);
+  const lastFrameTime = useRef<number>(0);
 
   // --- SOCKET LISTENERS ---
   useEffect(() => {
@@ -92,8 +93,16 @@ export const useGameLoop = (map: GameMap | null, paused: boolean) => {
   }, []);
 
   // Physics Loop
-  const updateGame = useCallback(() => {
+  const updateGame = useCallback((timestamp: number) => {
     if (!map) return;
+
+    // Cap at ~60FPS to prevent excessive re-renders on high refresh rate displays
+    if (timestamp - lastFrameTime.current < 16) {
+        requestRef.current = requestAnimationFrame(updateGame);
+        return;
+    }
+    lastFrameTime.current = timestamp;
+
     const currentPlayer = playerRef.current;
 
     if (paused || currentPlayer.isSitting) {
@@ -136,7 +145,7 @@ export const useGameLoop = (map: GameMap | null, paused: boolean) => {
                 const ty = Math.floor(p.y / TILE_SIZE);
                 if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) return true;
                 const tile = map.tiles[ty][tx];
-                if (tile === TileType.WALL || tile === TileType.DESK || tile === TileType.TOMBSTONE || tile === TileType.ALTAR || tile === TileType.WATER || tile === TileType.TREE || tile === TileType.PODIUM) return true;
+                if (tile === TileType.WALL || tile === TileType.DESK || tile === TileType.TOMBSTONE || tile === TileType.ALTAR || tile === TileType.WATER || tile === TileType.TREE || tile === TileType.PODIUM || tile === TileType.WINDOW) return true;
             }
             return false;
         };
@@ -152,9 +161,9 @@ export const useGameLoop = (map: GameMap | null, paused: boolean) => {
         const newState = { ...currentPlayer, pos: newPos, direction: newDir, isMoving };
         setLocalPlayer(newState);
 
-        // Emit to server (throttled to 30ms to avoid flooding)
+        // Emit to server (throttled to 400ms to avoid flooding)
         const now = Date.now();
-        if (now - lastEmitRef.current > 30) {
+        if (now - lastEmitRef.current > 400) {
             socket.emit('playerMove', { pos: newPos, direction: newDir, isMoving });
             lastEmitRef.current = now;
         }

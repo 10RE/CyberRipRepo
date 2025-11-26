@@ -106,7 +106,7 @@ const io = new Server(httpServer, {
 });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// app.use(express.static(join(__dirname, 'dist')));
+app.use(express.static(join(__dirname, 'dist')));
 
 // --- GAME STATE ---
 const mapData = generateServerMap();

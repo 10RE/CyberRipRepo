@@ -53,6 +53,7 @@ export interface PlayerState {
   isMoving: boolean;
   isSitting: boolean;
   appearance: CharacterAppearance;
+  id: string;
 }
 
 export interface GameMap {

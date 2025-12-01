@@ -9,77 +9,98 @@ const PixelMap: React.FC<PixelMapProps> = ({ mapData }) => {
   
   const getTileStyle = (type: TileType, x: number, y: number) => {
     const baseStyle: React.CSSProperties = {
-      width: TILE_SIZE,
+      width: TILE_SIZE, // TILE_SIZE is 48
       height: TILE_SIZE,
       position: 'absolute',
       left: x * TILE_SIZE,
       top: y * TILE_SIZE,
       boxSizing: 'border-box',
+      backgroundSize: 'cover',
+      imageRendering: 'pixelated',
+      // Fix for white lines between tiles:
+      // Ensure background doesn't repeat and clamp to edges
+      backgroundRepeat: 'no-repeat',
+      // Slightly scale up background to cover sub-pixel gaps
+      transform: 'scale(1.02)', 
+      transformOrigin: 'center',
+      zIndex: 0 // Ensure tiles are below objects
     };
 
     switch (type) {
       case TileType.WALL:
         return { 
             ...baseStyle, 
-            backgroundColor: '#4e342e',
-            backgroundImage: `linear-gradient(180deg, #3e2723 0%, #5d4037 50%, #3e2723 100%)`,
-            boxShadow: '0 5px 10px rgba(0,0,0,0.5)',
-            zIndex: 5
+            backgroundImage: 'url(/assets/tiles/wall.png)',
+            zIndex: 5,
+            transform: 'none' // Walls might need precise alignment, don't scale
         }; 
       case TileType.FLOOR:
         return { 
             ...baseStyle, 
-            backgroundColor: '#8d6e63', 
-            border: '1px solid #795548',
-            boxShadow: 'inset 0 0 2px rgba(0,0,0,0.1)'
+            backgroundImage: 'url(/assets/tiles/floor.png)',
         }; 
       case TileType.GRASS:
         return { 
             ...baseStyle, 
-            backgroundColor: '#558b2f', 
-            backgroundImage: 'radial-gradient(circle, #689f38 20%, transparent 20%)',
-            backgroundSize: '16px 16px'
+            backgroundImage: 'url(/assets/tiles/grass.png)',
         }; 
       case TileType.DOOR:
         return { 
             ...baseStyle, 
-            backgroundColor: '#5d4037', 
-            border: '4px solid #3e2723',
-            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)'
+            backgroundImage: 'url(/assets/tiles/floor.png)', // Door sits on floor
         };
       case TileType.WATER:
         return { 
             ...baseStyle, 
-            backgroundColor: '#29b6f6', 
+            backgroundImage: 'url(/assets/tiles/water.png)',
             opacity: 0.9,
-            border: '4px solid #90a4ae',
-            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5), 0 0 0 2px #546e7a', // Double border for stone effect
         };
       case TileType.BENCH:
         return { 
             ...baseStyle, 
-            backgroundColor: '#8d6e63', 
+            backgroundImage: 'url(/assets/tiles/floor.png)', // Bench sits on floor
         };
       case TileType.CARPET:
         return {
             ...baseStyle,
-            backgroundColor: '#b71c1c',
+            backgroundColor: '#b71c1c', // Keep simple color for carpet for now or add asset
             borderLeft: '2px solid #ffeb3b',
             borderRight: '2px solid #ffeb3b',
         };
       case TileType.PATH:
         return {
             ...baseStyle,
-            backgroundColor: '#90a4ae',
-            border: '1px dashed #78909c'
+            backgroundImage: 'url(/assets/tiles/path.png)',
         };
       case TileType.DESK:
-          return {
-              ...baseStyle,
-              backgroundColor: '#3e2723',
-              borderTop: '12px solid #5d4037',
-              zIndex: 10
-          }
+        return {
+            ...baseStyle,
+            backgroundImage: 'url(/assets/tiles/floor.png)',
+            zIndex: 10
+        };
+      case TileType.CANDLE:
+        return { 
+            ...baseStyle, 
+            backgroundImage: 'url(/assets/tiles/wall.png)',
+            zIndex: 5,
+            transform: 'none' // Walls might need precise alignment, don't scale
+        };
+      case TileType.TOMBSTONE:
+        return {
+            ...baseStyle,
+            backgroundImage: 'url(/assets/tiles/grass.png)',
+        };
+      case TileType.TREE:
+        return {
+            ...baseStyle,
+            backgroundImage: 'url(/assets/tiles/grass.png)',
+        };
+      case TileType.PODIUM:
+        return {
+            ...baseStyle,
+            backgroundImage: 'url(/assets/tiles/floor.png)',
+            zIndex: 10
+        };
       default:
         return baseStyle;
     }
@@ -99,38 +120,30 @@ const PixelMap: React.FC<PixelMapProps> = ({ mapData }) => {
         zIndex: 10
     }
 
-    // CSS PIXEL ART OBJECTS
+    const imgStyle: React.CSSProperties = {
+        width: '100%',
+        height: '100%',
+        objectFit: 'contain',
+        imageRendering: 'pixelated'
+    };
 
     if (type === TileType.TOMBSTONE) {
         return (
             <div style={style}>
-                <div className="w-8 h-10 bg-[#9e9e9e] rounded-t-2xl border-b-4 border-[#616161] relative shadow-md">
-                    <div className="absolute top-2 left-2 w-4 h-1 bg-[#757575] rounded-sm"></div>
-                    <div className="absolute top-4 left-2 w-3 h-0.5 bg-[#757575]"></div>
-                    {/* Cracks */}
-                    <div className="absolute bottom-2 right-2 w-1 h-3 bg-[#616161] rotate-45"></div>
-                </div>
+                <img src="/assets/sprites/tombstone.png" alt="tombstone" style={imgStyle} />
             </div>
         )
     }
 
     if (type === TileType.WATER) {
-        return (
-            <div style={{...style, zIndex: 1}}>
-                 <div className="w-full h-full flex items-center justify-center">
-                     <div className="w-4 h-4 bg-blue-200 rounded-full animate-ping opacity-50"></div>
-                 </div>
-            </div>
-        )
+        // Water is handled in tiles, but we can add a ripple effect here if needed
+        return null;
     }
 
     if (type === TileType.ALTAR) {
         return (
             <div style={style}>
-                <div className="w-10 h-8 bg-[#fff8e1] border-2 border-[#ffd700] relative mt-4 shadow-lg flex items-center justify-center">
-                    <div className="w-full h-full bg-[repeating-linear-gradient(90deg,transparent,transparent_5px,rgba(0,0,0,0.05)_5px,rgba(0,0,0,0.05)_10px)]"></div>
-                    <div className="absolute top-0 w-full h-2 bg-[#b71c1c]"></div>
-                </div>
+                <img src="/assets/sprites/altar.png" alt="altar" style={imgStyle} />
             </div>
         )
     }
@@ -138,10 +151,7 @@ const PixelMap: React.FC<PixelMapProps> = ({ mapData }) => {
     if (type === TileType.DOOR) {
         return (
             <div style={style}>
-                 <div className="w-full h-full relative">
-                     <div className="absolute top-1/2 right-2 w-2 h-2 bg-[#ffd700] rounded-full shadow-sm border border-[#b8860b]"></div>
-                     <div className="absolute top-2 left-2 w-8 h-8 border border-[#4e342e] opacity-30"></div>
-                 </div>
+                 <img src="/assets/sprites/door.png" alt="door" style={imgStyle} />
             </div>
         )
     }
@@ -149,7 +159,7 @@ const PixelMap: React.FC<PixelMapProps> = ({ mapData }) => {
     if (type === TileType.BENCH) {
         return (
             <div style={{...style, zIndex: 5}}>
-                <div className="w-full h-6 bg-[#5d4037] mt-4 rounded-sm shadow-md border-t-4 border-[#4e342e]"></div>
+                <img src="/assets/sprites/bench.png" alt="bench" style={imgStyle} />
             </div>
         );
     }
@@ -157,23 +167,16 @@ const PixelMap: React.FC<PixelMapProps> = ({ mapData }) => {
     if (type === TileType.CANDLE) {
         return (
             <div style={style}>
-                <div className="w-2 h-5 bg-[#fff8e1] relative mt-3 rounded-sm shadow-sm">
-                    <div className="absolute -top-2 left-0 right-0 mx-auto w-2 h-2 bg-orange-400 rounded-full animate-pulse shadow-[0_0_15px_rgba(255,165,0,0.8)]"></div>
-                </div>
+                <img src="/assets/sprites/candle.png" alt="candle" style={imgStyle} />
+                <div className="absolute top-0 left-0 w-full h-full bg-orange-500 opacity-20 animate-pulse rounded-full blur-md"></div>
             </div>
         )
     }
 
     if (type === TileType.FLOWER) {
-        const isPink = (x + y) % 2 === 0;
         return (
             <div style={style} className="scale-75">
-                 <div className="relative w-6 h-6">
-                     <div className={`absolute top-0 left-2 w-2 h-6 ${isPink ? 'bg-pink-400' : 'bg-yellow-400'} rounded-full`}></div>
-                     <div className={`absolute top-2 left-0 w-6 h-2 ${isPink ? 'bg-pink-400' : 'bg-yellow-400'} rounded-full`}></div>
-                     <div className="absolute top-2 left-2 w-2 h-2 bg-white rounded-full z-10"></div>
-                     <div className="absolute bottom-0 left-2.5 w-1 h-4 bg-green-600 -z-10"></div>
-                 </div>
+                 <img src="/assets/sprites/flower.png" alt="flower" style={imgStyle} />
             </div>
         );
     }
@@ -181,28 +184,15 @@ const PixelMap: React.FC<PixelMapProps> = ({ mapData }) => {
     if (type === TileType.TREE) {
         return (
             <div style={{...style, zIndex: 25, height: TILE_SIZE * 2, top: y * TILE_SIZE - TILE_SIZE}}>
-                <div className="flex flex-col items-center">
-                    <div className="w-20 h-20 bg-[#2e7d32] rounded-full shadow-xl -mb-6 relative border-4 border-[#1b5e20]">
-                        <div className="absolute top-2 left-4 w-4 h-4 bg-[#4caf50] rounded-full opacity-30"></div>
-                        <div className="absolute bottom-4 right-4 w-6 h-6 bg-[#1b5e20] rounded-full opacity-20"></div>
-                    </div>
-                    <div className="w-6 h-10 bg-[#3e2723] rounded-sm border-x-2 border-[#271c19]"></div>
-                </div>
+                <img src="/assets/sprites/tree.png" alt="tree" style={{...imgStyle, height: '200%', width: 'auto'}} />
             </div>
         )
     }
 
     if (type === TileType.WINDOW) {
-        // Stained Glass
         return (
             <div style={{...style, zIndex: 4}}>
-                <div className="w-8 h-12 bg-blue-900 rounded-t-full border-4 border-[#424242] overflow-hidden relative shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                    <div className="w-full h-full grid grid-cols-2 grid-rows-3">
-                        <div className="bg-red-500 opacity-50"></div><div className="bg-blue-500 opacity-50"></div>
-                        <div className="bg-yellow-500 opacity-50"></div><div className="bg-green-500 opacity-50"></div>
-                        <div className="bg-purple-500 opacity-50"></div><div className="bg-orange-500 opacity-50"></div>
-                    </div>
-                </div>
+                <img src="/assets/sprites/window.png" alt="window" style={imgStyle} />
             </div>
         )
     }
@@ -210,10 +200,15 @@ const PixelMap: React.FC<PixelMapProps> = ({ mapData }) => {
     if (type === TileType.PODIUM) {
         return (
             <div style={style}>
-                <div className="w-8 h-10 bg-[#4e342e] mt-2 relative border-b-4 border-[#3e2723]">
-                    <div className="absolute -top-1 left-0 w-10 -ml-1 h-3 bg-[#5d4037] rounded-sm shadow-sm"></div>
-                    <div className="absolute top-2 left-2 w-4 h-4 bg-[#3e2723] rounded-full opacity-50"></div>
-                </div>
+                <img src="/assets/sprites/podium.png" alt="podium" style={imgStyle} />
+            </div>
+        )
+    }
+
+    if (type === TileType.DESK) {
+        return (
+            <div style={style}>
+                <img src="/assets/sprites/desk.png" alt="desk" style={imgStyle} />
             </div>
         )
     }

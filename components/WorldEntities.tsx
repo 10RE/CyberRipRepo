@@ -27,24 +27,78 @@ export const WorldEntities: React.FC<WorldEntitiesProps> = ({
       return tileX >= 10 && tileX <= 29 && tileY >= 6 && tileY <= 17;
   };
 
-  const renderCharacter = (appearance: any, direction: string = 'down', isMoving: boolean = false, isSitting: boolean = false, glasses: boolean = false) => (
-      <div className={`w-8 h-10 relative ${isMoving ? 'animate-bounce' : ''} ${isSitting ? 'translate-y-2' : ''} drop-shadow-lg`}>
-          <div className="absolute bottom-0 left-1 w-6 h-4 rounded-b-sm" style={{backgroundColor: appearance.pantsColor}}></div>
-          <div className="absolute bottom-4 left-1 w-6 h-4 rounded-t-sm" style={{backgroundColor: appearance.shirtColor}}></div>
-          <div className="absolute bottom-7 left-1.5 w-5 h-5 rounded-sm z-10" style={{backgroundColor: appearance.skinColor}}></div>
-          {appearance.hasHat && (
-              <>
-                  <div className="absolute bottom-10 left-0 w-8 h-2 rounded-sm z-20" style={{backgroundColor: appearance.hatColor}}></div>
-                  <div className="absolute bottom-11 left-2 w-4 h-2 rounded-t-sm z-20" style={{backgroundColor: appearance.hatColor}}></div>
-              </>
-          )}
-          <div className="absolute top-3 left-2.5 w-1 h-1 bg-black z-30"></div>
-          <div className="absolute top-3 right-2.5 w-1 h-1 bg-black z-30"></div>
-          {glasses && (
-              <div className="absolute top-3 left-2 w-4 h-1 bg-black z-40"></div>
-          )}
-      </div>
-  );
+  // --- NEW: Layered Sprite Component ---
+  const renderCharacter = (appearance: any, direction: string = 'down', isMoving: boolean = false, isSitting: boolean = false, glasses: boolean = false) => {
+      // Normalize direction for sprites (left is usually flipped right, but let's assume we have 4 dir or just use down for now)
+      // For simplicity in this first pass, we will use 'down' (front view) for all, 
+      // but you can easily change this to `${direction}` once you have all 4 direction sprites.
+      const dirSuffix = 'down'; 
+
+      const spriteStyle: React.CSSProperties = {
+          position: 'absolute',
+          inset: 0,
+          maskSize: 'contain',
+          WebkitMaskSize: 'contain',
+          maskRepeat: 'no-repeat',
+          WebkitMaskRepeat: 'no-repeat',
+          maskPosition: 'center',
+          WebkitMaskPosition: 'center',
+          imageRendering: 'pixelated'
+      };
+
+      const Layer = ({ part, color, z }: { part: string, color: string, z: number }) => (
+          <div style={{
+              ...spriteStyle,
+              backgroundColor: color,
+              maskImage: `url(/assets/sprites/char_${part}_${dirSuffix}.png)`,
+              WebkitMaskImage: `url(/assets/sprites/char_${part}_${dirSuffix}.png)`,
+              zIndex: z
+          }} />
+      );
+
+      const Overlay = ({ part, z }: { part: string, z: number }) => (
+        <img 
+            src={`/assets/sprites/char_${part}_${dirSuffix}.png`}
+            style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                imageRendering: 'pixelated',
+                zIndex: z,
+                pointerEvents: 'none'
+            }}
+        />
+      );
+
+      return (
+          <div className={`w-12 h-16 relative -mt-6 -ml-2 ${isMoving ? 'animate-bounce' : ''} ${isSitting ? 'translate-y-2' : ''} drop-shadow-lg`}>
+              {/* 1. Skin Layer */}
+              <Layer part="skin" color={appearance.skinColor} z={1} />
+              
+              {/* 2. Pants Layer */}
+              <Layer part="pants" color={appearance.pantsColor} z={2} />
+              
+              {/* 3. Shirt Layer */}
+              <Layer part="shirt" color={appearance.shirtColor} z={3} />
+
+              {/* 4. Hat Layer (Optional) */}
+              {appearance.hasHat && (
+                  <Layer part="hat" color={appearance.hatColor} z={4} />
+              )}
+
+              {/* 5. Outline/Shadow Overlay (Crucial for detail!) */}
+              {/* This image should be semi-transparent black outlines/shading, NO colors */}
+              <Overlay part="overlay" z={10} />
+
+              {/* Glasses (Extra accessory example) */}
+              {glasses && (
+                  <div className="absolute top-4 left-3 w-6 h-2 bg-black opacity-80 z-20 rounded-sm"></div>
+              )}
+          </div>
+      );
+  };
 
   const renderCoffin = () => (
       <div className="w-24 h-12 flex flex-col shadow-2xl items-center justify-center relative">
